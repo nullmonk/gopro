@@ -71,10 +71,12 @@ func (b *Buffer) ReadLenDelim() ([]byte, error) {
 	}
 	res := make([]byte, ln)
 	n, err := b.r.Read(res)
-
 	b.idx += n
 	if err != nil {
 		return res, err
+	}
+	if uint64(n) != ln {
+		return nil, fmt.Errorf("EOF")
 	}
 	return res, nil
 }

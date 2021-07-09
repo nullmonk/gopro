@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/micahjmartin/gopro"
+	"github.com/micahjmartin/gopro/detector"
 )
 
 func main() {
@@ -24,16 +25,17 @@ func main() {
 			fmt.Fprintln(os.Stderr, "USAGE: gopro <filename>")
 			os.Exit(1)
 		}
-		buf, err = ioutil.ReadFile(os.Args[2])
+		buf, err = ioutil.ReadFile(os.Args[1])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading from %s\n", os.Args[2])
+			fmt.Fprintf(os.Stderr, "Error reading from %s\n", os.Args[1])
 			os.Exit(1)
 		}
 	}
 
 	msg, err := gopro.Decode(buf)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "%s. Falling back to protobuf detection.\n", err)
+		detector.DetectProtobuf(buf)
 		os.Exit(1)
 	}
 

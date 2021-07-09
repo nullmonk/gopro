@@ -12,11 +12,30 @@ var INDENT = "  "
 
 type Message map[int][]interface{}
 
+func (m Message) Add(item Item) {
+	var i interface{}
+	if item.WireType == 2 {
+		i = getType2(item)
+	} else {
+		i = item.String()
+	}
+
+	// Check if there are multiple items
+	if _, ok := m[item.FieldNumber]; !ok {
+		m[item.FieldNumber] = make([]interface{}, 0, 1)
+	}
+	m[item.FieldNumber] = append(m[item.FieldNumber], i)
+}
+
 // A generic protobuf item
 type Item struct {
 	WireType    int
 	FieldNumber int
 	Raw         []byte
+}
+
+func (i *Item) Dump() {
+	fmt.Printf("%d (%d) = %s\n", i.FieldNumber, i.WireType, i.String())
 }
 
 func (i *Item) String() string {
@@ -40,8 +59,11 @@ func (i *Item) String() string {
 }
 
 // read a protobuf item from the buffer
-func readNextItem(b *Buffer) (item Item, err error) {
+func ReadNextItem(b *Buffer) (item Item, err error) {
 	fieldNumber, wireType, err := b.ReadKey()
+	if fieldNumber == 0 || wireType > 5 {
+		return Item{}, b.Error(fmt.Errorf("Invalid Field Number (%d) or Bad Wiretype (%d)", fieldNumber, wireType))
+	}
 	if err != nil {
 		return Item{}, err
 	}
@@ -74,27 +96,15 @@ func readNextItem(b *Buffer) (item Item, err error) {
 }
 
 // Read an entire message from a buffer
-func readMessage(b *Buffer) (message Message, err error) {
+func ReadMessage(b *Buffer) (message Message, err error) {
 	message = make(Message)
 	for !b.Empty() {
-		item, err := readNextItem(b)
+		item, err := ReadNextItem(b)
 		if err != nil && IsProtobufError(err) != nil {
 			return nil, err
 		}
 
-		var i interface{}
-		if item.WireType == 2 {
-			i = getType2(item)
-		} else {
-			i = item.String()
-		}
-
-		// Check if there are multiple items
-		if _, ok := message[item.FieldNumber]; !ok {
-			message[item.FieldNumber] = make([]interface{}, 0)
-		}
-		message[item.FieldNumber] = append(message[item.FieldNumber], i)
-
+		message.Add(item)
 	}
 	return message, nil
 }
@@ -104,7 +114,7 @@ func getType2(i Item) interface{} {
 	if i.WireType != 2 {
 		return nil
 	}
-	msg, err := readMessage(NewBuffer(i.Raw))
+	msg, err := ReadMessage(NewBuffer(i.Raw))
 	if err == nil {
 		return msg
 	}
@@ -149,5 +159,52 @@ func IsString(b []byte) bool {
 
 // Decode the given bytes to a message
 func Decode(b []byte) (Message, error) {
-	return readMessage(NewBuffer(b))
+	return ReadMessage(NewBuffer(b))
+}
+
+/* Reading a varint in reverse is actually quite difficult, luckily, we know the byte before is */
+
+/* Read a Varint in reverse starting at index i. N is the number of bytes read */
+func ReadVarintReverse(buf []byte, idx int) (uint64, int) {
+	if buf[idx] >= 0x80 {
+		return 0, 0
+	}
+
+	varint := make([]byte, 0, 2)
+	for idx >= 0 {
+		// Read a byte, add it to the result
+		byt := buf[idx] // Always read the first byte
+		if byt < 0x80 && len(varint) != 0 {
+			break
+		}
+		varint = append([]byte{byt}, varint...)
+		idx--
+	}
+
+	return binary.Uvarint(varint)
+}
+
+/* Read a Varint in reverse starting at index i until wiretype X is read. N is the number of bytes read */
+func ReadVarintReverseWiretype(buf []byte, idx, wiretype int) (uint64, int) {
+	if buf[idx] >= 0x80 {
+		return 0, 0
+	}
+
+	varint := make([]byte, 0, 2)
+	for idx >= 0 {
+		// Read a byte, add it to the result
+		byt := buf[idx] // Always read the first byte
+
+		if byt < 0x80 && len(varint) != 0 {
+			break
+		}
+		varint = append([]byte{byt}, varint...)
+		idx--
+		// we have the wiretype that we want, stop
+		if int(byt&0x7) == wiretype {
+			break
+		}
+	}
+
+	return binary.Uvarint(varint)
 }
