@@ -74,7 +74,7 @@ func (i *Item) String() string {
 
 func (i *Item) Type() string {
 	if i._type == "" {
-		i.String()
+		_ = i.String()
 	}
 	return i._type
 }
