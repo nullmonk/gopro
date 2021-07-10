@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// Custom bytes.Reader which has useful functions for protobuf
 type Buffer struct {
 	r   *bytes.Reader
 	idx int
@@ -25,7 +26,9 @@ func (b *Buffer) Empty() bool {
 	return int64(b.idx) >= b.r.Size()
 }
 
-// ReadVarint reads a single varint from the buffer, we could use the binary.ReadUvarint method, but tehn we would lose track of the index
+/* ReadVarintBytes reads a single varint from the buffer and returns the bytes.
+   we could use the binary.ReadUvarint method, but then we would lose track of the index
+*/
 func (b *Buffer) ReadVarintBytes() ([]byte, error) {
 	buf := make([]byte, 0, 4)
 	for {
@@ -42,6 +45,7 @@ func (b *Buffer) ReadVarintBytes() ([]byte, error) {
 	return buf, nil
 }
 
+// Read a varint from the buffer
 func (b *Buffer) ReadVarint() (uint64, error) {
 	buf, err := b.ReadVarintBytes()
 	if err != nil {
@@ -51,6 +55,7 @@ func (b *Buffer) ReadVarint() (uint64, error) {
 	return result, nil
 }
 
+// Read a protobuf key from the buffer
 func (b *Buffer) ReadKey() (fieldNumber uint64, wireType int, err error) {
 	v, err := b.ReadVarint()
 	if err != nil {
@@ -61,6 +66,7 @@ func (b *Buffer) ReadKey() (fieldNumber uint64, wireType int, err error) {
 	return
 }
 
+// Read a length delimited item from the buffer
 func (b *Buffer) ReadLenDelim() ([]byte, error) {
 	ln, err := b.ReadVarint()
 	if err != nil {
@@ -86,6 +92,7 @@ func (b *Buffer) Read(buf []byte) (int, error) {
 	return b.r.Read(buf)
 }
 
+// Return an error which marks the proper index of the error
 func (b *Buffer) Error(i interface{}) *ProtobufDecodeError {
 	if p, ok := i.(*ProtobufDecodeError); ok {
 		p.i = b.Index()

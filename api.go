@@ -6,7 +6,7 @@ import (
 
 // DumpMessage dumps a Message to stdout
 func DumpMessage(m decoder.Message) {
-	decoder.DumpMessage(m, decoder.INDENT)
+	decoder.DumpMessage(m, "")
 }
 
 // Decode the given bytes to a message

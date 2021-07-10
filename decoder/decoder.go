@@ -10,17 +10,20 @@ import (
 
 var INDENT = "  "
 
+// Generic map type which acts as a Protobuf message
+// NOTE: All field numbers are mapped to an array, even if there is only one object
 type Message map[int][]interface{}
 
+// Add an item to the message
 func (m Message) Add(item Item) {
 	var i interface{}
 	if item.WireType == 2 {
 		i = getType2(item)
 	} else {
-		i = item.String()
+		i = item
 	}
 
-	// Check if there are multiple items
+	// Make the array if we need to
 	if _, ok := m[item.FieldNumber]; !ok {
 		m[item.FieldNumber] = make([]interface{}, 0, 1)
 	}
@@ -32,30 +35,48 @@ type Item struct {
 	WireType    int
 	FieldNumber int
 	Raw         []byte
+
+	_str  string
+	_type string
 }
 
-func (i *Item) Dump() {
-	fmt.Printf("%d (%d) = %s\n", i.FieldNumber, i.WireType, i.String())
+func (i *Item) Dump(indent string) {
+	fmt.Printf("%s%s %d = %s\n", indent, i.Type(), i.FieldNumber, i.String())
 }
 
 func (i *Item) String() string {
-	switch i.WireType {
-	case 0:
-		v, _ := binary.Uvarint(i.Raw)
-		return fmt.Sprintf("%d", v)
-	case 1:
-		return fmt.Sprintf("0x%s", hex.EncodeToString(i.Raw))
-	case 2:
-		if IsString(i.Raw) {
-			return string(i.Raw)
-		} else {
-			// Do something different for bytes?
-			return fmt.Sprintf("0x%s", hex.EncodeToString(i.Raw))
+	if i._str == "" {
+		switch i.WireType {
+		case 0:
+			v, _ := binary.Uvarint(i.Raw)
+			i._str = fmt.Sprintf("%d", v)
+			i._type = "varint"
+		case 1:
+			i._str = fmt.Sprintf("0x%s", hex.EncodeToString(i.Raw))
+			i._type = "64bit"
+		case 2:
+			if IsString(i.Raw) {
+				i._str = string(i.Raw)
+				i._type = "string"
+			} else {
+				// Do something different for bytes?
+				i._type = "bytes"
+				i._str = fmt.Sprintf("0x%s", hex.EncodeToString(i.Raw))
+			}
+		case 5:
+			i._str = fmt.Sprintf("0x%s", hex.EncodeToString(i.Raw))
+			i._type = "32bit"
 		}
-	case 5:
-		return fmt.Sprintf("0x%s", hex.EncodeToString(i.Raw))
+		return ""
 	}
-	return ""
+	return i._str
+}
+
+func (i *Item) Type() string {
+	if i._type == "" {
+		i.String()
+	}
+	return i._type
 }
 
 // read a protobuf item from the buffer
@@ -118,12 +139,7 @@ func getType2(i Item) interface{} {
 	if err == nil {
 		return msg
 	}
-	// String
-	if IsString(i.Raw) {
-		return string(i.Raw)
-	}
-	// Bytes
-	return i.Raw
+	return i
 }
 
 // Dump a message to stdout
@@ -138,10 +154,10 @@ func DumpMessage(m Message, indent string) {
 	for _, k := range keys {
 		for _, v := range m[k] {
 			if sm, ok := v.(Message); ok {
-				fmt.Printf("%s%d:\n", indent, k)
+				fmt.Printf("%smessage %d:\n", indent, k)
 				DumpMessage(sm, indent+INDENT)
-			} else {
-				fmt.Printf("%s%d: %v\n", indent, k, v)
+			} else if sm, ok := v.(Item); ok {
+				sm.Dump(indent)
 			}
 		}
 	}
