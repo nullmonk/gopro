@@ -17,7 +17,7 @@ type Message map[int][]interface{}
 // Add an item to the message
 func (m Message) Add(item Item) {
 	var i interface{}
-	if item.WireType == 2 {
+	if item.WireType == 2 && item._type != "string" {
 		i = getType2(item)
 	} else {
 		i = item
@@ -28,6 +28,14 @@ func (m Message) Add(item Item) {
 		m[item.FieldNumber] = make([]interface{}, 0, 1)
 	}
 	m[item.FieldNumber] = append(m[item.FieldNumber], i)
+}
+
+func (m Message) AddSubmessage(fn int, msg Message) {
+	// Make the array if we need to
+	if _, ok := m[fn]; !ok {
+		m[fn] = make([]interface{}, 0, 1)
+	}
+	m[fn] = append(m[fn], msg)
 }
 
 // A generic protobuf item
@@ -41,7 +49,11 @@ type Item struct {
 }
 
 func (i *Item) Dump(indent string) {
-	fmt.Printf("%s%s %d = %s\n", indent, i.Type(), i.FieldNumber, i.String())
+	str := i.String()
+	if str == "" {
+		str = fmt.Sprintf("%x", i.Raw)
+	}
+	fmt.Printf("%s%s %d = %s\n", indent, i.Type(), i.FieldNumber, str)
 }
 
 func (i *Item) String() string {
@@ -50,26 +62,41 @@ func (i *Item) String() string {
 		case 0:
 			v, _ := binary.Uvarint(i.Raw)
 			i._str = fmt.Sprintf("%d", v)
-			i._type = "varint"
+			if i._type == "" {
+				i._type = "varint"
+			}
 		case 1:
 			i._str = fmt.Sprintf("0x%s", hex.EncodeToString(i.Raw))
-			i._type = "64bit"
+			if i._type == "" {
+				i._type = "64bit"
+			}
 		case 2:
 			if IsString(i.Raw) {
 				i._str = string(i.Raw)
-				i._type = "string"
+				if i._type == "" {
+					i._type = "string"
+				}
 			} else {
 				// Do something different for bytes?
-				i._type = "bytes"
+				if i._type == "" {
+					i._type = "bytes"
+				}
 				i._str = fmt.Sprintf("0x%s", hex.EncodeToString(i.Raw))
 			}
 		case 5:
 			i._str = fmt.Sprintf("0x%s", hex.EncodeToString(i.Raw))
-			i._type = "32bit"
+			if i._type == "" {
+				i._type = "32bit"
+			}
 		}
-		return ""
+		return i._str
 	}
 	return i._str
+}
+
+/* Set the name and string representation of the item */
+func (i *Item) SetType(name string) {
+	i._type = name
 }
 
 func (i *Item) Type() string {

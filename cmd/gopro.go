@@ -6,7 +6,9 @@ import (
 	"os"
 
 	"github.com/micahjmartin/gopro"
+	"github.com/micahjmartin/gopro/decoder"
 	"github.com/micahjmartin/gopro/detector"
+	"github.com/micahjmartin/gopro/urldecoder"
 )
 
 func main() {
@@ -32,12 +34,28 @@ func main() {
 		}
 	}
 
-	msg, err := gopro.Decode(buf)
+	// Handle URLPB decoding
+	var msg decoder.Message
+	if buf[0] == urldecoder.Delimiter[0] {
+		msg, err = gopro.DecodeUrl(string(buf))
+	} else {
+		msg, err = gopro.Decode(buf)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s. Falling back to protobuf detection.\n", err)
 		detector.DetectProtobuf(buf)
 		os.Exit(1)
 	}
 
-	gopro.DumpMessage(msg)
+	dump := false
+	for _, f := range os.Args {
+		if f == "-dump" {
+			dump = true
+		}
+	}
+	if dump {
+		gopro.Encode(msg, os.Stdout)
+	} else {
+		gopro.DumpMessage(msg)
+	}
 }

@@ -79,10 +79,14 @@ func (b *Buffer) ReadLenDelim() ([]byte, error) {
 	n, err := b.r.Read(res)
 	b.idx += n
 	if err != nil {
+		if err.Error() == "EOF" {
+			return nil, fmt.Errorf("EOF: Reading len delim")
+
+		}
 		return res, err
 	}
 	if uint64(n) != ln {
-		return nil, fmt.Errorf("EOF")
+		return nil, fmt.Errorf("EOF: Reading len delim")
 	}
 	return res, nil
 }
