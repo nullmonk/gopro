@@ -3,7 +3,7 @@ package decoder_test
 import (
 	"testing"
 
-	"github.com/micahjmartin/gopro/decoder"
+	"github.com/nullmonk/gopro/decoder"
 )
 
 var BLOB3 = []byte{

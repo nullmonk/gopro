@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/micahjmartin/gopro/decoder"
+	"github.com/nullmonk/gopro/decoder"
 )
 
 func IsPbString(buf []byte, s StringIndex) int {

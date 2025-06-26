@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/micahjmartin/gopro"
-	"github.com/micahjmartin/gopro/detector"
+	"github.com/nullmonk/gopro"
+	"github.com/nullmonk/gopro/detector"
 )
 
 func main() {

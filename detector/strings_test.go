@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/micahjmartin/gopro/decoder"
-	"github.com/micahjmartin/gopro/detector"
+	"github.com/nullmonk/gopro/decoder"
+	"github.com/nullmonk/gopro/detector"
 )
 
 var data = []byte{

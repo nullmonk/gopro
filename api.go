@@ -1,7 +1,7 @@
 package gopro
 
 import (
-	"github.com/micahjmartin/gopro/decoder"
+	"github.com/nullmonk/gopro/decoder"
 )
 
 // DumpMessage dumps a Message to stdout
